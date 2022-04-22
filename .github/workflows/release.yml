@@ -1,0 +1,44 @@
+name: Upload Release Asset
+
+on:
+  push:
+    tags:
+    - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+
+      - name: Setup node
+        uses: actions/setup-node@v2
+        with:
+          node-version: '17.x'
+
+      - name: Setup env
+        run: |
+          echo "REPOSITORY_NAME=$(echo '${{ github.repository }}' | awk -F '/' '{print $2}')" >> $GITHUB_ENV
+          npm install
+          echo "PACKAGES_LIST=$(npx npm-packlist | tr '\n' ' ')" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Build project
+        run: |
+          zip --junk-paths ${{ env.REPOSITORY_NAME }} ${{ env.PACKAGES_LIST }}
+          tar cvfz ${{ env.REPOSITORY_NAME }}.tar.gz ${{ env.PACKAGES_LIST }}
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          draft: false
+          prerelease: false
+          files: |
+            ${{ env.REPOSITORY_NAME }}.zip
+            ${{ env.REPOSITORY_NAME }}.tar.gz
